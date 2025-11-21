@@ -215,7 +215,7 @@ function Dashboard() {
               </Typography>
               {ultimosMovimentos.length === 0 ? (
                   <Typography color="textSecondary">
-                    Nenhum movimento registado
+                    Nenhum movimento registado!
                   </Typography>
               ) : (
                   <List>
