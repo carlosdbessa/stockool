@@ -21,7 +21,11 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { supabase } from '../../services/supabase'
@@ -41,6 +45,9 @@ function Movimentos() {
     observacoes: ''
   })
 
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+
   useEffect(() => {
     loadData()
   }, [])
@@ -49,7 +56,6 @@ function Movimentos() {
     try {
       setLoading(true)
 
-      // Carregar movimentos com dados relacionados
       const { data: movimentosData, error: movError } = await supabase
           .from('movimentos')
           .select(`
@@ -62,7 +68,6 @@ function Movimentos() {
 
       if (movError) throw movError
 
-      // Carregar produtos
       const { data: produtosData, error: prodError } = await supabase
           .from('produtos')
           .select('*')
@@ -70,7 +75,6 @@ function Movimentos() {
 
       if (prodError) throw prodError
 
-      // Carregar utilizadores
       const { data: utilizadoresData, error: userError } = await supabase
           .from('utilizadores')
           .select('*')
@@ -115,7 +119,6 @@ function Movimentos() {
 
   const handleSubmit = async () => {
     try {
-      // Validações
       if (!formData.produto_id || !formData.utilizador_id) {
         setError('Selecione o produto e o utilizador')
         return
@@ -126,7 +129,6 @@ function Movimentos() {
         return
       }
 
-      // Buscar produto atual
       const { data: produto, error: prodError } = await supabase
           .from('produtos')
           .select('stock_atual')
@@ -141,7 +143,6 @@ function Movimentos() {
       if (formData.tipo === 'entrada') {
         novoStock = stockAnterior + parseInt(formData.quantidade)
       } else {
-        // Saída
         if (stockAnterior < parseInt(formData.quantidade)) {
           setError('Stock insuficiente para esta operação')
           return
@@ -149,7 +150,6 @@ function Movimentos() {
         novoStock = stockAnterior - parseInt(formData.quantidade)
       }
 
-      // Criar movimento
       const { error: movError } = await supabase
           .from('movimentos')
           .insert([{
@@ -165,7 +165,6 @@ function Movimentos() {
 
       if (movError) throw movError
 
-      // Atualizar stock do produto
       const { error: updateError } = await supabase
           .from('produtos')
           .update({ stock_atual: novoStock })
@@ -182,16 +181,115 @@ function Movimentos() {
     }
   }
 
+  // Versão Mobile - Cards
+  const MobileView = () => (
+      <Box>
+        {movimentos.map((movimento) => (
+            <Card key={movimento.id} sx={{ mb: 2 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                  <Typography variant="h6" component="div">
+                    {movimento.produtos?.nome || 'N/A'}
+                  </Typography>
+                  <Chip
+                      label={movimento.tipo}
+                      color={movimento.tipo === 'entrada' ? 'success' : 'error'}
+                      size="small"
+                  />
+                </Box>
+
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <strong>Código:</strong> {movimento.produtos?.codigo || 'N/A'}
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <strong>Utilizador:</strong> {movimento.utilizadores?.nome || 'N/A'}
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <strong>Quantidade:</strong> {movimento.quantidade} {movimento.produtos?.unidade || ''}
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <strong>Stock:</strong> {movimento.stock_anterior} → {movimento.stock_novo}
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <strong>Data:</strong> {new Date(movimento.data).toLocaleString('pt-PT')}
+                </Typography>
+
+                {movimento.observacoes && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      <strong>Obs:</strong> {movimento.observacoes}
+                    </Typography>
+                )}
+              </CardContent>
+            </Card>
+        ))}
+      </Box>
+  )
+
+  // Versão Desktop - Tabela
+  const DesktopView = () => (
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Data/Hora</TableCell>
+              <TableCell>Produto</TableCell>
+              <TableCell>Utilizador</TableCell>
+              <TableCell>Tipo</TableCell>
+              <TableCell>Quantidade</TableCell>
+              <TableCell>Stock Anterior</TableCell>
+              <TableCell>Stock Novo</TableCell>
+              <TableCell>Observações</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {movimentos.map((movimento) => (
+                <TableRow key={movimento.id}>
+                  <TableCell>
+                    {new Date(movimento.data).toLocaleString('pt-PT')}
+                  </TableCell>
+                  <TableCell>
+                    {movimento.produtos?.nome || 'N/A'}
+                    <br />
+                    <Typography variant="caption" color="textSecondary">
+                      {movimento.produtos?.codigo || ''}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{movimento.utilizadores?.nome || 'N/A'}</TableCell>
+                  <TableCell>
+                    <Chip
+                        label={movimento.tipo}
+                        color={movimento.tipo === 'entrada' ? 'success' : 'error'}
+                        size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {movimento.quantidade} {movimento.produtos?.unidade || ''}
+                  </TableCell>
+                  <TableCell>{movimento.stock_anterior}</TableCell>
+                  <TableCell>{movimento.stock_novo}</TableCell>
+                  <TableCell>{movimento.observacoes || '-'}</TableCell>
+                </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+  )
+
   return (
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-          <Typography variant="h4">Movimentos de Stock</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">Movimentos</Typography>
           <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleOpenDialog}
+              size={isMobile ? "medium" : "large"}
           >
-            Novo Movimento
+            {isMobile ? "Novo" : "Novo Movimento"}
           </Button>
         </Box>
 
@@ -201,54 +299,8 @@ function Movimentos() {
             </Alert>
         )}
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Data/Hora</TableCell>
-                <TableCell>Produto</TableCell>
-                <TableCell>Utilizador</TableCell>
-                <TableCell>Tipo</TableCell>
-                <TableCell>Quantidade</TableCell>
-                <TableCell>Stock Anterior</TableCell>
-                <TableCell>Stock Novo</TableCell>
-                <TableCell>Observações</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {movimentos.map((movimento) => (
-                  <TableRow key={movimento.id}>
-                    <TableCell>
-                      {new Date(movimento.data).toLocaleString('pt-PT')}
-                    </TableCell>
-                    <TableCell>
-                      {movimento.produtos?.nome || 'N/A'}
-                      <br />
-                      <Typography variant="caption" color="textSecondary">
-                        {movimento.produtos?.codigo || ''}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{movimento.utilizadores?.nome || 'N/A'}</TableCell>
-                    <TableCell>
-                      <Chip
-                          label={movimento.tipo}
-                          color={movimento.tipo === 'entrada' ? 'success' : 'error'}
-                          size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {movimento.quantidade} {movimento.produtos?.unidade || ''}
-                    </TableCell>
-                    <TableCell>{movimento.stock_anterior}</TableCell>
-                    <TableCell>{movimento.stock_novo}</TableCell>
-                    <TableCell>{movimento.observacoes || '-'}</TableCell>
-                  </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        {isMobile ? <MobileView /> : <DesktopView />}
 
-        {/* Dialog para adicionar movimento */}
         <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
           <DialogTitle>Novo Movimento de Stock</DialogTitle>
           <DialogContent>
