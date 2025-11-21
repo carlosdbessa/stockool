@@ -11,7 +11,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  Chip
+  Chip,
+  useMediaQuery,
+  useTheme
 } from '@mui/material'
 import InventoryIcon from '@mui/icons-material/Inventory'
 import WarningIcon from '@mui/icons-material/Warning'
@@ -31,6 +33,9 @@ function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+
   useEffect(() => {
     loadDashboardData()
   }, [])
@@ -39,26 +44,21 @@ function Dashboard() {
     try {
       setLoading(true)
 
-      // Total de produtos
       const { count: totalProdutos } = await supabase
           .from('produtos')
           .select('*', { count: 'exact', head: true })
 
-      // Buscar todos os produtos primeiro
       const { data: todosProdutos } = await supabase
           .from('produtos')
           .select('*')
 
-      // Filtrar manualmente os que têm stock baixo
       const produtosBaixo = todosProdutos?.filter(p => p.stock_atual <= p.stock_minimo).slice(0, 5) || []
       const countBaixo = todosProdutos?.filter(p => p.stock_atual <= p.stock_minimo).length || 0
 
-      // Total de utilizadores
       const { count: totalUtilizadores } = await supabase
           .from('utilizadores')
           .select('*', { count: 'exact', head: true })
 
-      // Movimentos de hoje
       const hoje = new Date().toISOString().split('T')[0]
       const { count: movimentosHoje } = await supabase
           .from('movimentos')
@@ -66,7 +66,6 @@ function Dashboard() {
           .gte('data', `${hoje}T00:00:00`)
           .lte('data', `${hoje}T23:59:59`)
 
-      // Últimos 5 movimentos
       const { data: movimentos } = await supabase
           .from('movimentos')
           .select(`
@@ -103,7 +102,7 @@ function Dashboard() {
               <Typography color="textSecondary" gutterBottom variant="body2">
                 {title}
               </Typography>
-              <Typography variant="h4" component="div">
+              <Typography variant={isMobile ? "h5" : "h4"} component="div">
                 {value}
               </Typography>
             </Box>
@@ -111,7 +110,7 @@ function Dashboard() {
                 sx={{
                   backgroundColor: `${color}.light`,
                   borderRadius: '50%',
-                  p: 1.5,
+                  p: isMobile ? 1 : 1.5,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -134,7 +133,7 @@ function Dashboard() {
 
   return (
       <Box sx={{ width: '100%' }}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant={isMobile ? "h5" : "h4"} gutterBottom>
           Dashboard
         </Typography>
 
@@ -145,95 +144,108 @@ function Dashboard() {
         )}
 
         {/* Cards de estatísticas */}
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
+        <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 2 : 3 }}>
+          <Grid item xs={6} md={3}>
             <StatCard
-                title="Total de Produtos"
+                title="Produtos"
                 value={stats.totalProdutos}
-                icon={<InventoryIcon color="primary" />}
+                icon={<InventoryIcon color="primary" fontSize={isMobile ? "medium" : "large"} />}
                 color="primary"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} md={3}>
             <StatCard
                 title="Stock Baixo"
                 value={stats.produtosStockBaixo}
-                icon={<WarningIcon color="warning" />}
+                icon={<WarningIcon color="warning" fontSize={isMobile ? "medium" : "large"} />}
                 color="warning"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} md={3}>
             <StatCard
                 title="Utilizadores"
                 value={stats.totalUtilizadores}
-                icon={<PeopleIcon color="success" />}
+                icon={<PeopleIcon color="success" fontSize={isMobile ? "medium" : "large"} />}
                 color="success"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} md={3}>
             <StatCard
-                title="Movimentos Hoje"
+                title="Mov. Hoje"
                 value={stats.movimentosHoje}
-                icon={<TrendingUpIcon color="info" />}
+                icon={<TrendingUpIcon color="info" fontSize={isMobile ? "medium" : "large"} />}
                 color="info"
             />
           </Grid>
         </Grid>
 
-        <Grid container spacing={3}>
+        <Grid container spacing={isMobile ? 2 : 3} sx={{ height: isMobile ? 'auto' : 'calc(100vh - 400px)' }}>
           {/* Alertas de Stock Baixo */}
-          <Grid item xs={12} lg={6}>
-            <Paper sx={{ p: 2, height: '100%' }}>
+          <Grid item xs={12} lg={6} sx={{ display: 'flex' }}>
+            <Paper sx={{ p: 2, width: '100%', display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" gutterBottom>
                 Alertas de Stock Baixo
               </Typography>
-              {produtosAlerta.length === 0 ? (
-                  <Typography color="textSecondary">
-                    Nenhum produto com stock baixo
-                  </Typography>
-              ) : (
-                  <List>
-                    {produtosAlerta.map((produto) => (
-                        <ListItem key={produto.id} divider>
-                          <ListItemText
-                              primary={produto.nome}
-                              secondary={`Código: ${produto.codigo} | Stock: ${produto.stock_atual} / Mínimo: ${produto.stock_minimo}`}
-                          />
-                          <Chip label="Baixo" color="warning" size="small" />
-                        </ListItem>
-                    ))}
-                  </List>
-              )}4npm
+              <Box sx={{ flexGrow: 1, overflow: 'auto', maxHeight: isMobile ? '300px' : 'auto' }}>
+                {produtosAlerta.length === 0 ? (
+                    <Typography color="textSecondary">
+                      Nenhum produto com stock baixo
+                    </Typography>
+                ) : (
+                    <List>
+                      {produtosAlerta.map((produto) => (
+                          <ListItem key={produto.id} divider>
+                            <ListItemText
+                                primary={produto.nome}
+                                secondary={`Código: ${produto.codigo} | Stock: ${produto.stock_atual} / Mínimo: ${produto.stock_minimo}`}
+                                secondaryTypographyProps={{
+                                  sx: { fontSize: isMobile ? '0.75rem' : '0.875rem' }
+                                }}
+                            />
+                            <Chip label="Baixo" color="warning" size="small" />
+                          </ListItem>
+                      ))}
+                    </List>
+                )}
+              </Box>
             </Paper>
           </Grid>
 
           {/* Últimos Movimentos */}
-          <Grid item xs={12} lg={6}>
-            <Paper sx={{ p: 2, height: '100%' }}>
+          <Grid item xs={12} lg={6} sx={{ display: 'flex' }}>
+            <Paper sx={{ p: 2, width: '100%', display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" gutterBottom>
                 Últimos Movimentos
               </Typography>
-              {ultimosMovimentos.length === 0 ? (
-                  <Typography color="textSecondary">
-                    Nenhum movimento registado!
-                  </Typography>
-              ) : (
-                  <List>
-                    {ultimosMovimentos.map((mov) => (
-                        <ListItem key={mov.id} divider>
-                          <ListItemText
-                              primary={`${mov.produtos?.nome || 'Produto'} - ${mov.quantidade} ${mov.tipo === 'entrada' ? 'entrada' : 'saída'}`}
-                              secondary={`${mov.utilizadores?.nome || 'Utilizador'} • ${new Date(mov.data).toLocaleString('pt-PT')}`}
-                          />
-                          <Chip
-                              label={mov.tipo}
-                              color={mov.tipo === 'entrada' ? 'success' : 'error'}
-                              size="small"
-                          />
-                        </ListItem>
-                    ))}
-                  </List>
-              )}
+              <Box sx={{ flexGrow: 1, overflow: 'auto', maxHeight: isMobile ? '300px' : 'auto' }}>
+                {ultimosMovimentos.length === 0 ? (
+                    <Typography color="textSecondary">
+                      Nenhum movimento registado
+                    </Typography>
+                ) : (
+                    <List>
+                      {ultimosMovimentos.map((mov) => (
+                          <ListItem key={mov.id} divider>
+                            <ListItemText
+                                primary={`${mov.produtos?.nome || 'Produto'} - ${mov.quantidade} ${mov.tipo === 'entrada' ? 'entrada' : 'saída'}`}
+                                secondary={`${mov.utilizadores?.nome || 'Utilizador'} • ${new Date(mov.data).toLocaleString('pt-PT', {
+                                  dateStyle: isMobile ? 'short' : 'short',
+                                  timeStyle: 'short'
+                                })}`}
+                                secondaryTypographyProps={{
+                                  sx: { fontSize: isMobile ? '0.75rem' : '0.875rem' }
+                                }}
+                            />
+                            <Chip
+                                label={mov.tipo}
+                                color={mov.tipo === 'entrada' ? 'success' : 'error'}
+                                size="small"
+                            />
+                          </ListItem>
+                      ))}
+                    </List>
+                )}
+              </Box>
             </Paper>
           </Grid>
         </Grid>
